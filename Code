@@ -1,0 +1,257 @@
+import java.io.*;
+import java.util.*;
+
+public class OnlineVotingSystem {
+    
+    // User class to store user details
+    static class User {
+        private String username;
+        private String password;
+        private boolean hasVoted;
+
+        public User(String username, String password) {
+            this.username = username;
+            this.password = password;
+            this.hasVoted = false;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public boolean hasVoted() {
+            return hasVoted;
+        }
+
+        public void setHasVoted(boolean hasVoted) {
+            this.hasVoted = hasVoted;
+        }
+
+        @Override
+        public String toString() {
+            return username + "," + password + "," + hasVoted;
+        }
+    }
+
+    // VoteManager class to handle the voting logic
+    static class VoteManager {
+        private static final String USER_FILE = "users.txt";
+        private static final String VOTE_FILE = "votes.txt";
+        private List<User> users;
+        private Map<String, Integer> votes;
+
+        public VoteManager() {
+            users = loadUsers();
+            votes = loadVotes();
+        }
+
+        // Load users from file
+        private List<User> loadUsers() {
+            List<User> userList = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(USER_FILE))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] userData = line.split(",");
+                    User user = new User(userData[0], userData[1]);
+                    user.setHasVoted(Boolean.parseBoolean(userData[2]));
+                    userList.add(user);
+                }
+            } catch (IOException e) {
+                System.out.println("No users file found. Starting fresh.");
+            }
+            return userList;
+        }
+
+        // Save users to file
+        private void saveUsers() {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
+                for (User user : users) {
+                    writer.write(user.toString());
+                    writer.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Load votes from file
+        private Map<String, Integer> loadVotes() {
+            Map<String, Integer> voteMap = new HashMap<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(VOTE_FILE))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] voteData = line.split(",");
+                    voteMap.put(voteData[0], Integer.parseInt(voteData[1]));
+                }
+            } catch (IOException e) {
+                System.out.println("No votes file found. Starting fresh.");
+            }
+            return voteMap;
+        }
+
+        // Save votes to file
+        private void saveVotes() {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(VOTE_FILE))) {
+                for (Map.Entry<String, Integer> entry : votes.entrySet()) {
+                    writer.write(entry.getKey() + "," + entry.getValue());
+                    writer.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Register a new user
+        public boolean registerUser(String username, String password) {
+            for (User user : users) {
+                if (user.getUsername().equals(username)) {
+                    return false; // Username already exists
+                }
+            }
+            users.add(new User(username, password));
+            saveUsers();
+            return true;
+        }
+
+        // Validate user login
+        public User loginUser(String username, String password) {
+            for (User user : users) {
+                if (user.getUsername().equals(username) && user.getPassword().equals(password)) {
+                    return user;
+                }
+            }
+            return null; // Invalid login
+        }
+
+        // Allow a user to vote
+        public boolean vote(User user, String candidate) {
+            if (user.hasVoted()) {
+                return false; // User has already voted
+            }
+            votes.put(candidate, votes.getOrDefault(candidate, 0) + 1);
+            user.setHasVoted(true);
+            saveVotes();
+            return true;
+        }
+
+        // Get the voting results
+        public Map<String, Integer> getResults() {
+            return votes;
+        }
+
+        // Show available candidates
+        public List<String> getCandidates() {
+            return new ArrayList<>(votes.keySet());
+        }
+    }
+
+    // Main application to run the voting system
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        VoteManager voteManager = new VoteManager();
+
+        // Sample candidates to vote for
+        if (voteManager.getCandidates().isEmpty()) {
+            voteManager.getCandidates().add("Candidate A");
+            voteManager.getCandidates().add("Candidate B");
+            voteManager.getCandidates().add("Candidate C");
+        }
+
+        while (true) {
+            System.out.println("\nWelcome to the Online Voting System!");
+            System.out.println("1. Register");
+            System.out.println("2. Login");
+            System.out.println("3. View Election Results");
+            System.out.println("4. Exit");
+            System.out.print("Choose an option: ");
+
+            int choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline character
+
+            switch (choice) {
+                case 1:
+                    registerUser(voteManager, scanner);
+                    break;
+                case 2:
+                    loginUser(voteManager, scanner);
+                    break;
+                case 3:
+                    showResults(voteManager);
+                    break;
+                case 4:
+                    System.out.println("Exiting the system...");
+                    scanner.close();
+                    System.exit(0);
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    // Register a new user
+    private static void registerUser(VoteManager voteManager, Scanner scanner) {
+        System.out.print("Enter your username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter your password: ");
+        String password = scanner.nextLine();
+
+        if (voteManager.registerUser(username, password)) {
+            System.out.println("Registration successful!");
+        } else {
+            System.out.println("Username already exists. Please try again.");
+        }
+    }
+
+    // Login a user
+    private static void loginUser(VoteManager voteManager, Scanner scanner) {
+        System.out.print("Enter your username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter your password: ");
+        String password = scanner.nextLine();
+
+        User user = voteManager.loginUser(username, password);
+        if (user != null) {
+            System.out.println("Login successful!");
+
+            if (user.hasVoted()) {
+                System.out.println("You have already voted.");
+            } else {
+                voteInElection(voteManager, user, scanner);
+            }
+        } else {
+            System.out.println("Invalid login. Please try again.");
+        }
+    }
+
+    // Voting functionality
+    private static void voteInElection(VoteManager voteManager, User user, Scanner scanner) {
+        System.out.println("Please choose a candidate to vote for:");
+        voteManager.getCandidates().forEach(candidate -> System.out.println(candidate));
+
+        String candidate = scanner.nextLine();
+        if (voteManager.vote(user, candidate)) {
+            System.out.println("Thank you for your vote!");
+        } else {
+            System.out.println("You have already voted.");
+        }
+    }
+
+    // Display the election results
+    private static void showResults(VoteManager voteManager) {
+        System.out.println("Election Results:");
+        Map<String, Integer> results = voteManager.getResults();
+
+        if (results.isEmpty()) {
+            System.out.println("No votes cast yet.");
+        } else {
+            results.forEach((candidate, votes) -> {
+                System.out.println(candidate + ": " + votes + " votes");
+            });
+        }
+    }
+}   
